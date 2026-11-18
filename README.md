@@ -93,6 +93,29 @@ npm run build
 npm link
 ```
 
+### Running in Other Terminals (PowerShell, Command Prompt, etc.)
+
+If you are running in terminals other than Bash (such as **Windows PowerShell**, **Command Prompt (CMD)**, or environments where global symlinks are restricted), you can build and run `lana` locally using `npx`:
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Build the CLI:**
+   ```bash
+   npm run build
+   ```
+
+3. **Run via `npx`:**
+   ```bash
+   # Launch general Lana CLI / help
+   npx lana
+
+   # Launch interactive Orb Explorer Mode
+   npx lana orb
+   ```
+
 ---
 
 ## 🔑 Authentication & Configuration
