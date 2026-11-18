@@ -28,7 +28,7 @@ export default defineCommand({
         authenticated: isLive,
         apiKeyPreview: activeKey ? maskedKey : null,
         configPath: getConfigPath(),
-        endpoint: config.endpoint || 'https://lana-api.helius-experiments.com',
+        endpoint: config.endpoint || 'https://beta.helius-rpc.com/v1/lana/messages',
       }, null, 2));
       return;
     }
@@ -37,6 +37,6 @@ export default defineCommand({
     console.log(`  ${pc.bold('Status:')}       ${isLive ? pc.green('✔ Authenticated') : pc.yellow('⚠ No API Key Configured')}`);
     console.log(`  ${pc.bold('API Key:')}      ${isLive ? pc.cyan(maskedKey) : pc.dim('Not set (run `lana login` to configure)')}`);
     console.log(`  ${pc.bold('Config File:')}  ${pc.dim(getConfigPath())}`);
-    console.log(`  ${pc.bold('Endpoint:')}     ${pc.dim(config.endpoint || 'https://lana-api.helius-experiments.com')}\n`);
+    console.log(`  ${pc.bold('Endpoint:')}     ${pc.dim(config.endpoint || 'https://beta.helius-rpc.com/v1/lana/messages')}\n`);
   },
 });

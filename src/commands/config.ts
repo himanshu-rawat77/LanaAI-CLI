@@ -106,7 +106,7 @@ export default defineCommand({
       }`
     );
     console.log(`  Default Format: ${pc.white(config.defaultFormat || 'table')}`);
-    console.log(`  API Endpoint:   ${pc.dim(config.endpoint || 'https://lana-api.helius-experiments.com')}\n`);
+    console.log(`  API Endpoint:   ${pc.dim(config.endpoint || 'https://beta.helius-rpc.com/v1/lana/messages')}\n`);
     console.log(pc.dim('Config commands:'));
     console.log(`  ${pc.cyan('lana config get')}              ${pc.dim('View active configuration status')}`);
     console.log(`  ${pc.cyan('lana config set --key <KEY>')}  ${pc.dim('Update or change API key')}`);

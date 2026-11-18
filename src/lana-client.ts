@@ -43,7 +43,7 @@ export class LanaClient {
       options.endpoint ||
       process.env.LANA_API_URL ||
       config.endpoint ||
-      'https://lana-api.helius-experiments.com';
+      'https://beta.helius-rpc.com/v1/lana/messages';
 
     // Strip quotes and trailing slash
     rawEndpoint = rawEndpoint.replace(/^["']|["']$/g, '').replace(/\/+$/, '');

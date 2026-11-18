@@ -198,7 +198,7 @@ def resolve_api_key(explicit_key: Optional[str] = None) -> Optional[str]:
 
 
 def resolve_endpoint(explicit_endpoint: Optional[str] = None) -> str:
-    url = explicit_endpoint or os.getenv("LANA_API_URL") or "https://lana-api.helius-experiments.com"
+    url = explicit_endpoint or os.getenv("LANA_API_URL") or "https://beta.helius-rpc.com/v1/lana/messages"
     url = url.strip().strip('"\'').rstrip("/")
     if not any(url.endswith(p) for p in ["/v1/messages", "/chat/completions", "/v1/lana"]):
         url = f"{url}/v1/messages"

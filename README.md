@@ -148,7 +148,7 @@ Alternatively, pass your key via environment variables:
 export LANA_API_KEY="your_helius_or_lana_key"
 
 # Optional endpoint overrides:
-export LANA_API_URL="https://lana-api.helius-experiments.com"
+export LANA_API_URL="https://beta.helius-rpc.com/v1/lana/messages"
 export LANA_MODEL="lana-fast"
 ```
 
