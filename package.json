@@ -1,0 +1,62 @@
+{
+  "name": "@himanshurawatj/lana-ai-cli",
+  "version": "1.1.1",
+  "description": "Terminal-native interface for Helius Lana AI - Solana conversational intelligence and detective toolkit",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/himanshurawatj/lana-cli.git"
+  },
+  "homepage": "https://github.com/himanshurawatj/lana-cli#readme",
+  "bugs": {
+    "url": "https://github.com/himanshurawatj/lana-cli/issues"
+  },
+  "bin": {
+    "lana": "bin/lana.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "prepack": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "node ./bin/lana.js --help"
+  },
+  "keywords": [
+    "solana",
+    "helius",
+    "lana",
+    "cli",
+    "ai",
+    "crypto",
+    "blockchain",
+    "investigation"
+  ],
+  "author": "Helius / Lana AI Developers",
+  "license": "MIT",
+  "dependencies": {
+    "boxen": "^8.0.1",
+    "citty": "^0.1.6",
+    "cli-table3": "^0.6.5",
+    "consola": "^3.4.0",
+    "dotenv": "^16.4.7",
+    "ofetch": "^1.4.1",
+    "ora": "^8.2.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "tsup": "^8.3.6",
+    "typescript": "^5.7.3"
+  }
+}

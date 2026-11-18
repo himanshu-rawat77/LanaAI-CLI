@@ -1,0 +1,6 @@
+import 'dotenv/config';
+import { runMain } from 'citty';
+import { main } from './cli.js';
+
+runMain(main);
+
