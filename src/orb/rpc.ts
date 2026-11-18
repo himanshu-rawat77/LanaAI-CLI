@@ -358,7 +358,7 @@ export class OrbRpcClient {
 
     // Try Anchor IDL registry endpoint
     try {
-      const idlRes = await ofetch<any>(`https://api.apr.dev/api/v0/program/${programId}/idl`, {
+      const idlRes = await ofetch<any>(`https://api.apr.dev/api/v0/program/${encodeURIComponent(programId)}/idl`, {
         timeout: 5000,
       });
       if (idlRes?.instructions && Array.isArray(idlRes.instructions)) {
@@ -557,7 +557,7 @@ export class OrbRpcClient {
     let tokenSymbol: string | undefined = undefined;
 
     try {
-      const dsRes = await ofetch<any>(`https://api.dexscreener.com/latest/dex/tokens/${mint}`, {
+      const dsRes = await ofetch<any>(`https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(mint)}`, {
         timeout: 5000,
       });
       if (Array.isArray(dsRes?.pairs) && dsRes.pairs.length > 0) {

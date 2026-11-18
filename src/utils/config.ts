@@ -162,6 +162,7 @@ export function askMasked(promptText: string): Promise<string> {
 
 export function openBrowser(url: string): void {
   try {
+    if (!/^https?:\/\//i.test(url)) return;
     const platform = process.platform;
     if (platform === 'win32') {
       exec(`start "" "${url}"`);
