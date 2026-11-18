@@ -19,8 +19,8 @@ import chatCmd, { startInteractiveChat } from './commands/chat.js';
 export const main = defineCommand({
   meta: {
     name: 'lana',
-    version: '1.1.1',
-    description: 'Helius Lana AI — Solana Conversational Intelligence & Forensic Detective Toolkit',
+    version: '1.1.2',
+    description: 'Solana Conversational Intelligence & Forensic Explorer (Unofficial Community CLI built on Helius Lana AI)',
   },
   subCommands: {
     chat: chatCmd,
@@ -47,6 +47,11 @@ export const main = defineCommand({
     apiKey: {
       type: 'string',
       description: 'Custom Lana / Helius API key',
+    },
+    allowCustomHost: {
+      type: 'boolean',
+      description: 'Allow sending credentials to a custom/untrusted endpoint',
+      default: false,
     },
   },
   async run({ rawArgs, args }) {

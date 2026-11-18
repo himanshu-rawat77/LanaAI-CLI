@@ -1,7 +1,7 @@
 {
   "name": "@himanshurawatj/lana-ai-cli",
-  "version": "1.1.1",
-  "description": "Terminal-native interface for Helius Lana AI - Solana conversational intelligence and detective toolkit",
+  "version": "1.1.2",
+  "description": "Unofficial community CLI for Solana conversational intelligence and forensics built on Helius Lana AI",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -30,7 +30,7 @@
     "dev": "tsup --watch",
     "prepack": "npm run build",
     "typecheck": "tsc --noEmit",
-    "test": "node ./bin/lana.js --help"
+    "test": "node ./bin/lana.js --help && node --test tests/review-regression.test.ts"
   },
   "keywords": [
     "solana",
@@ -42,7 +42,7 @@
     "blockchain",
     "investigation"
   ],
-  "author": "Helius / Lana AI Developers",
+  "author": "Himanshu Rawat <himanshurawatj@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "boxen": "^8.0.1",

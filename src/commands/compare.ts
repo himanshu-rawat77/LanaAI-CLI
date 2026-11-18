@@ -40,6 +40,11 @@ export default defineCommand({
       type: 'string',
       description: 'API key for Lana / Helius',
     },
+    allowCustomHost: {
+      type: 'boolean',
+      description: 'Allow sending credentials to a custom/untrusted endpoint',
+      default: false,
+    },
   },
   async run({ args }) {
     const rawArgs: string[] = [args.address1, args.address2, ...((args as any)._ || [])].filter(
@@ -66,6 +71,7 @@ export default defineCommand({
       const client = new LanaClient({
         apiKey: auth.apiKey,
         verbose: args.verbose,
+        allowCustomHost: args.allowCustomHost,
       });
 
       const comparison = await client.compare(addresses);

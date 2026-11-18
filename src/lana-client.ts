@@ -17,6 +17,25 @@ export interface LanaClientOptions {
   endpoint?: string;
   model?: string;
   verbose?: boolean;
+  allowCustomHost?: boolean;
+}
+
+export function isTrustedHeliusHost(urlOrHost: string): boolean {
+  try {
+    const parsed = urlOrHost.startsWith('http://') || urlOrHost.startsWith('https://')
+      ? new URL(urlOrHost)
+      : new URL(`https://${urlOrHost}`);
+    const host = parsed.hostname.toLowerCase();
+    const trustedSuffixes = [
+      'helius-rpc.com',
+      'helius.dev',
+      'helius-experiments.com',
+      'orbmarkets.io',
+    ];
+    return trustedSuffixes.some(suffix => host === suffix || host.endsWith(`.${suffix}`));
+  } catch {
+    return false;
+  }
 }
 
 export interface LanaRawResult {
@@ -30,6 +49,7 @@ export class LanaClient {
   private endpoint: string;
   private model: string;
   private verbose: boolean;
+  private allowCustomHost: boolean;
 
   constructor(options: LanaClientOptions = {}) {
     const key = getApiKey(options.apiKey);
@@ -57,6 +77,23 @@ export class LanaClient {
       this.endpoint = `${rawEndpoint}/v1/messages`;
     } else {
       this.endpoint = rawEndpoint;
+    }
+
+    this.allowCustomHost = Boolean(
+      options.allowCustomHost ||
+      process.env.LANA_ALLOW_CUSTOM_HOST === 'true' ||
+      config.allowCustomHost === true
+    );
+
+    // Explicit opt-in verification before sending credentials to custom hosts
+    if (!isTrustedHeliusHost(this.endpoint) && !this.allowCustomHost) {
+      let hostname = this.endpoint;
+      try {
+        hostname = new URL(this.endpoint).hostname;
+      } catch {}
+      throw new Error(
+        `Refusing to send API credentials to custom/untrusted endpoint "${hostname}" without explicit opt-in. Pass --allow-custom-host or set LANA_ALLOW_CUSTOM_HOST=true.`
+      );
     }
 
     this.model =
@@ -112,17 +149,25 @@ export class LanaClient {
     return null;
   }
 
+  private getAuthHeaders(): Record<string, string> {
+    const isAuthorized = isTrustedHeliusHost(this.endpoint) || this.allowCustomHost;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'anthropic-version': '2023-06-01',
+    };
+    if (isAuthorized && this.apiKey) {
+      headers['Authorization'] = `Bearer ${this.apiKey}`;
+      headers['x-api-key'] = this.apiKey;
+      headers['api-key'] = this.apiKey;
+    }
+    return headers;
+  }
+
   private async callLanaRaw(systemPrompt: string, userPrompt: string): Promise<LanaRawResult> {
     try {
       const response = await ofetch<any>(this.endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-          'x-api-key': this.apiKey,
-          'api-key': this.apiKey,
-          'anthropic-version': '2023-06-01',
-        },
+        headers: this.getAuthHeaders(),
         body: {
           model: this.model,
           max_tokens: 4096,
@@ -174,10 +219,14 @@ export class LanaClient {
   }
 
   private normalizeProfile(raw: any, address: string, narrativeFallback?: string): WalletProfile {
-    const riskScore = Number(raw?.riskScore ?? raw?.risk ?? 0);
+    const rawScore = raw?.riskScore != null ? raw.riskScore : raw?.risk;
+    const riskScore =
+      rawScore != null && !isNaN(Number(rawScore)) ? Number(rawScore) : undefined;
     const riskLevel =
       raw?.riskLevel ||
-      (riskScore >= 75 ? 'CRITICAL' : riskScore >= 50 ? 'HIGH' : riskScore >= 25 ? 'MEDIUM' : 'LOW');
+      (riskScore != null
+        ? (riskScore >= 75 ? 'CRITICAL' : riskScore >= 50 ? 'HIGH' : riskScore >= 25 ? 'MEDIUM' : 'LOW')
+        : undefined);
 
     const labels = Array.isArray(raw?.labels)
       ? raw.labels
@@ -191,14 +240,14 @@ export class LanaClient {
       riskLevel,
       labels,
       narrative: raw?.narrative || raw?.summary || narrativeFallback || 'No narrative provided by forensic analysis.',
-      firstActivity: raw?.firstActivity || raw?.firstActive || new Date().toISOString(),
-      lastActivity: raw?.lastActivity || raw?.lastActive || new Date().toISOString(),
+      firstActivity: raw?.firstActivity || raw?.firstActive || undefined,
+      lastActivity: raw?.lastActivity || raw?.lastActive || undefined,
       solBalance: Number(raw?.solBalance ?? raw?.balance ?? 0),
       tokenCount: Number(raw?.tokenCount ?? raw?.tokens ?? 0),
       totalTxCount: Number(
         raw?.totalTxCount ?? raw?.txCount ?? raw?.totalTransactions ?? raw?.transactions ?? 0
       ),
-      fundingSource: raw?.fundingSource || { address: 'Unknown' },
+      fundingSource: raw?.fundingSource || undefined,
       topCounterparties: Array.isArray(raw?.topCounterparties)
         ? raw.topCounterparties.map((cp: any) => ({
             address: cp.address || 'Unknown',
@@ -237,6 +286,14 @@ Analyze the Solana transaction signature and break down the status, fee, type, s
       throw new Error(text.trim());
     }
 
+    return this.parseTxBreakdown(signature, { text, toolResults, raw });
+  }
+
+  public parseTxBreakdown(signature: string, result: { text?: string; toolResults?: any[]; raw?: any }): TransactionExplainer {
+    const text = result.text || '';
+    const toolResults = result.toolResults || [];
+    const raw = result.raw || null;
+
     // 3. Find parsed transaction toolResult (e.g. from Helius parse_transaction tool)
     const txTool = toolResults.find(
       tr => tr && typeof tr === 'object' && (tr.signature || tr.nativeTransfers || tr.type)
@@ -258,13 +315,16 @@ Analyze the Solana transaction signature and break down the status, fee, type, s
       text.match(/\*\*Type:\*\*\s*([^\n]+)/i)?.[1]?.trim() ||
       'Solana Transaction';
 
-    const status: 'SUCCESS' | 'FAILED' =
+    const status: 'SUCCESS' | 'FAILED' | 'UNKNOWN' =
       base.status?.toUpperCase() === 'FAILED' ||
       text.match(/\*\*Status:\*\*\s*([^\n]+)/i)?.[1]?.toLowerCase().includes('fail')
         ? 'FAILED'
-        : 'SUCCESS';
+        : base.status?.toUpperCase() === 'SUCCESS' ||
+          text.match(/\*\*Status:\*\*\s*([^\n]+)/i)?.[1]?.toLowerCase().includes('success')
+        ? 'SUCCESS'
+        : 'UNKNOWN';
 
-    let feeSol = 0.000005;
+    let feeSol: number | undefined = undefined;
     if (base.fee != null) {
       feeSol = Number(base.fee);
     } else if (base.feeSol != null) {
@@ -274,15 +334,15 @@ Analyze the Solana transaction signature and break down the status, fee, type, s
       if (feeMatch) feeSol = parseFloat(feeMatch[1]);
     }
 
-    let timestamp =
+    let timestamp: string | undefined =
       base.date ||
       (base.timestamp
         ? typeof base.timestamp === 'number'
           ? new Date(base.timestamp * 1000).toISOString()
           : String(base.timestamp)
-        : new Date().toISOString());
+        : undefined);
     const tsMatch = text.match(/\*\*Timestamp:\*\*\s*([^\n(]+)/i);
-    if (tsMatch && !base.timestamp && !base.date) {
+    if (tsMatch && !timestamp) {
       timestamp = tsMatch[1].trim();
     }
 
@@ -431,28 +491,22 @@ Analyze the target Solana wallet address and output a structured profile coverin
       labels.push(addressTool.addressKind);
     }
 
-    // Estimate risk
-    let riskScore = 0;
-    let riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'LOW';
-    const lowerText = text.toLowerCase();
-    if (
-      lowerText.includes('drainer') ||
-      lowerText.includes('scam') ||
-      lowerText.includes('exploit') ||
-      lowerText.includes('malicious')
-    ) {
-      riskScore = 90;
-      riskLevel = 'CRITICAL';
-    } else if (lowerText.includes('suspicious') || lowerText.includes('high risk')) {
-      riskScore = 65;
-      riskLevel = 'HIGH';
-    } else if (
-      lowerText.includes('bot') ||
-      lowerText.includes('arbitrage') ||
-      lowerText.includes('validator')
-    ) {
-      riskScore = 15;
-      riskLevel = 'LOW';
+    // Estimate risk ONLY if explicit evidence/score exists; otherwise keep unknown
+    let riskScore: number | undefined = undefined;
+    let riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | 'UNKNOWN' | undefined = undefined;
+
+    const scoreMatch =
+      text.match(/\*\*Risk\s*(?:Score)?:\*\*\s*(\d{1,3})(?:\/100)?/i) ||
+      text.match(/\bRisk\s*Score:\s*(\d{1,3})(?:\/100)?/i);
+    if (scoreMatch) {
+      riskScore = parseInt(scoreMatch[1], 10);
+      riskLevel =
+        riskScore >= 75 ? 'CRITICAL' : riskScore >= 50 ? 'HIGH' : riskScore >= 25 ? 'MEDIUM' : 'LOW';
+    } else {
+      const levelMatch = text.match(/\*\*Risk\s*Level:\*\*\s*(CRITICAL|HIGH|MEDIUM|LOW|UNKNOWN)/i);
+      if (levelMatch) {
+        riskLevel = levelMatch[1].toUpperCase() as any;
+      }
     }
 
     const narrative = text || `Analysis completed for ${address}.`;
@@ -479,12 +533,12 @@ Analyze the target Solana wallet address and output a structured profile coverin
       riskLevel,
       labels: labels.length > 0 ? labels : ['Solana Account'],
       narrative,
-      firstActivity: summaryTool?.firstActivity || new Date().toISOString(),
-      lastActivity: summaryTool?.generatedAt || new Date().toISOString(),
+      firstActivity: summaryTool?.firstActivity || undefined,
+      lastActivity: summaryTool?.generatedAt || undefined,
       solBalance,
       tokenCount,
       totalTxCount,
-      fundingSource: { address: 'Unknown' },
+      fundingSource: undefined,
       topCounterparties,
       behavioralSignals: labels.length > 0 ? labels : ['Standard On-Chain Activity'],
     };
@@ -499,26 +553,39 @@ Trace multi-hop inflows and outflows for the given target address up to depth ${
 
     const jsonMatch = (raw && raw.rootAddress) ? raw : this.extractJson<any>(text);
     if (jsonMatch && typeof jsonMatch === 'object') {
+      const inflow =
+        jsonMatch.totalInflowSol != null
+          ? Number(jsonMatch.totalInflowSol)
+          : jsonMatch.inflowSol != null
+          ? Number(jsonMatch.inflowSol)
+          : undefined;
+      const outflow =
+        jsonMatch.totalOutflowSol != null
+          ? Number(jsonMatch.totalOutflowSol)
+          : jsonMatch.outflowSol != null
+          ? Number(jsonMatch.outflowSol)
+          : undefined;
+
       return {
         rootAddress: jsonMatch.rootAddress || address,
         depth: Number(jsonMatch.depth ?? depth),
-        totalInflowSol: Number(jsonMatch.totalInflowSol ?? jsonMatch.inflowSol ?? 0),
-        totalOutflowSol: Number(jsonMatch.totalOutflowSol ?? jsonMatch.outflowSol ?? 0),
+        totalInflowSol: inflow,
+        totalOutflowSol: outflow,
         directInflows: Array.isArray(jsonMatch.directInflows) ? jsonMatch.directInflows : [],
         directOutflows: Array.isArray(jsonMatch.directOutflows) ? jsonMatch.directOutflows : [],
         notableHops: Array.isArray(jsonMatch.notableHops) ? jsonMatch.notableHops : [],
       };
     }
 
-    // Fallback using text narrative
+    // Fallback using text narrative (keep unavailable measurements undefined)
     return {
       rootAddress: address,
       depth,
-      totalInflowSol: 0,
-      totalOutflowSol: 0,
+      totalInflowSol: undefined,
+      totalOutflowSol: undefined,
       directInflows: [],
       directOutflows: [],
-      notableHops: text ? [text.slice(0, 300)] : ['Fund flow analysis completed.'],
+      notableHops: text ? [text.slice(0, 300)] : [],
     };
   }
 
@@ -540,10 +607,17 @@ Trace multi-hop inflows and outflows for the given target address up to depth ${
         profiles = normAddresses.map((addr: string) => this.normalizeProfile({}, addr, text));
       }
 
+      const simScore =
+        jsonMatch.similarityScore != null
+          ? Number(jsonMatch.similarityScore)
+          : jsonMatch.similarity != null
+          ? Number(jsonMatch.similarity)
+          : undefined;
+
       return {
         addresses: normAddresses,
         profiles,
-        similarityScore: Number(jsonMatch.similarityScore ?? jsonMatch.similarity ?? 0),
+        similarityScore: simScore,
         commonCounterparties: Array.isArray(jsonMatch.commonCounterparties) ? jsonMatch.commonCounterparties : [],
         behavioralDifferences: Array.isArray(jsonMatch.behavioralDifferences) ? jsonMatch.behavioralDifferences : [],
         overlapSummary: jsonMatch.overlapSummary || jsonMatch.summary || text || 'Analysis complete.',
@@ -551,11 +625,12 @@ Trace multi-hop inflows and outflows for the given target address up to depth ${
       };
     }
 
+    // Fallback using text narrative (keep similarityScore undefined, no fixed 50)
     const profiles = addresses.map(addr => this.normalizeProfile({}, addr, text));
     return {
       addresses,
       profiles,
-      similarityScore: 50,
+      similarityScore: undefined,
       commonCounterparties: [],
       behavioralDifferences: [],
       overlapSummary: text || 'Comparative analysis complete.',
@@ -577,24 +652,25 @@ Produce an in-depth case file report on the target address.`;
         generatedAt: jsonMatch.generatedAt || new Date().toISOString(),
         classification: jsonMatch.classification || 'UNCLASSIFIED',
         executiveSummary: jsonMatch.executiveSummary || jsonMatch.summary || text || 'Case file compiled.',
-        riskAssessment: jsonMatch.riskAssessment || { score: 0, level: 'LOW', factors: [] },
-        clusterAnalysis: jsonMatch.clusterAnalysis || { primaryCluster: 'Independent', associatedEntities: [] },
-        fundOrigins: jsonMatch.fundOrigins || { originAddress: 'Unknown', originLabel: 'Unknown', firstBridgeOrCex: 'None', initialCapitalSol: 0, initialDate: '' },
+        riskAssessment: jsonMatch.riskAssessment,
+        clusterAnalysis: jsonMatch.clusterAnalysis,
+        fundOrigins: jsonMatch.fundOrigins,
         chronology: Array.isArray(jsonMatch.chronology) ? jsonMatch.chronology : [],
         conclusion: jsonMatch.conclusion || 'Investigation complete.',
       };
     }
 
+    // Fallback using text narrative (keep riskAssessment and fixed findings undefined, no fake 20/100)
     return {
       caseId: `CASE-${Date.now().toString(36).toUpperCase()}`,
       targetAddress: address,
       generatedAt: new Date().toISOString(),
       classification: 'ON-CHAIN FORENSIC FILE',
       executiveSummary: text || `Comprehensive forensic case file compiled for ${address}.`,
-      riskAssessment: { score: 20, level: 'LOW', factors: ['Live graph analysis'] },
-      clusterAnalysis: { primaryCluster: 'Independent Entity', associatedEntities: [] },
-      fundOrigins: { originAddress: 'On-Chain', originLabel: 'Mainnet Activity', firstBridgeOrCex: 'None', initialCapitalSol: 0, initialDate: '' },
-      chronology: [{ timestamp: new Date().toISOString(), event: 'Dossier generated', significance: 'Forensic baseline' }],
+      riskAssessment: undefined,
+      clusterAnalysis: undefined,
+      fundOrigins: undefined,
+      chronology: [],
       conclusion: 'Investigation complete. Review executive summary for full behavioral findings.',
     };
   }
@@ -609,13 +685,7 @@ Produce an in-depth case file report on the target address.`;
     try {
       const response = await ofetch<any>(this.endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-          'x-api-key': this.apiKey,
-          'api-key': this.apiKey,
-          'anthropic-version': '2023-06-01',
-        },
+        headers: this.getAuthHeaders(),
         body: {
           model: this.model,
           max_tokens: 4096,

@@ -71,7 +71,10 @@ export default defineCommand({
     let ai: OrbAi | null = null;
     if (!args.noAi && apiKey) {
       try {
-        const lanaClient = new LanaClient({ apiKey });
+        const lanaClient = new LanaClient({
+          apiKey,
+          allowCustomHost: Boolean((args as any).allowCustomHost),
+        });
         ai = new OrbAi(lanaClient);
       } catch {
         // AI remains null

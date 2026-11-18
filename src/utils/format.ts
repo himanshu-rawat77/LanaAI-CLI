@@ -26,7 +26,10 @@ export function formatUsd(amount?: number): string {
   return pc.green(`$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 }
 
-export function formatRiskBadge(score: number, level?: string): string {
+export function formatRiskBadge(score?: number, level?: string): string {
+  if (score === undefined || score === null) {
+    return pc.dim(level ? `[${level}]` : '[Risk Score: Unknown]');
+  }
   const calculatedLevel = level || (score >= 75 ? 'CRITICAL' : score >= 50 ? 'HIGH' : score >= 25 ? 'MEDIUM' : 'LOW');
   const scoreStr = `[${score}/100 - ${calculatedLevel}]`;
 

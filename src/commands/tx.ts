@@ -2,6 +2,9 @@ import { defineCommand } from 'citty';
 import { consola } from 'consola';
 import pc from 'picocolors';
 import { LanaClient } from '../lana-client.js';
+import { OrbRpcClient } from '../orb/rpc.js';
+import type { OrbTxDetails } from '../orb/types.js';
+import type { TransactionExplainer } from '../types.js';
 import { renderTx } from '../utils/output.js';
 import { isValidTxSignature } from '../utils/format.js';
 import { ensureApiKeyInteractive } from '../utils/config.js';
@@ -41,6 +44,11 @@ export default defineCommand({
       type: 'string',
       description: 'API key for Lana / Helius',
     },
+    allowCustomHost: {
+      type: 'boolean',
+      description: 'Allow sending API credentials to a custom/untrusted endpoint',
+      default: false,
+    },
   },
   async run({ args }) {
     const sig = (args.target || args.signature || (args as any)._?.[0] || '').trim();
@@ -64,12 +72,61 @@ export default defineCommand({
         consola.start(`Deconstructing Solana transaction ${pc.yellow(sig)}...`);
       }
 
+      // 1. Fetch on-chain ground truth facts via Orb RPC lookup
+      const rpc = new OrbRpcClient('mainnet', auth.apiKey);
+      let onChainTx: OrbTxDetails | null = null;
+      let onChainLookupError: string | null = null;
+
+      try {
+        onChainTx = await rpc.getTransaction(sig);
+      } catch (err: any) {
+        onChainLookupError = err.message || String(err);
+      }
+
+      // 2. Fetch Lana AI plain-English explanation
       const client = new LanaClient({
         apiKey: auth.apiKey,
         verbose: args.verbose,
+        allowCustomHost: args.allowCustomHost,
       });
 
-      const txExplainer = await client.tx(sig);
+      let txExplainer: TransactionExplainer;
+      try {
+        txExplainer = await client.tx(sig);
+      } catch (err: any) {
+        txExplainer = {
+          signature: sig,
+          status: onChainTx ? (onChainTx.status === 'Success' ? 'SUCCESS' : 'FAILED') : 'UNKNOWN',
+          plainEnglish: onChainTx
+            ? 'On-chain transaction verified. AI plain-English summary unavailable.'
+            : `Transaction unavailable or not found on Solana mainnet.`,
+          moneyMovements: [],
+          programInteractions: [],
+          signers: [],
+        };
+      }
+
+      // 3. Verify and reconcile transaction facts with on-chain ground truth
+      if (onChainTx) {
+        txExplainer.status = onChainTx.status === 'Success' ? 'SUCCESS' : 'FAILED';
+        txExplainer.feeSol = onChainTx.fee;
+        txExplainer.timestamp = onChainTx.blockTime !== 'Unknown' ? onChainTx.blockTime : undefined;
+        if (onChainTx.accounts && onChainTx.accounts.length > 0) {
+          const signers = onChainTx.accounts.filter(a => a.isSigner).map(a => a.address);
+          if (signers.length > 0) {
+            txExplainer.signers = signers;
+          }
+        }
+        if (onChainTx.status === 'Failed') {
+          txExplainer.onChainError = 'Transaction execution failed on-chain (instruction error).';
+        }
+      } else {
+        // Transaction could not be verified on-chain
+        txExplainer.status = 'UNKNOWN';
+        txExplainer.feeSol = undefined;
+        txExplainer.timestamp = undefined;
+        txExplainer.onChainError = onChainLookupError || 'Transaction not found on-chain.';
+      }
 
       if (!args.quiet && !args.json) {
         consola.success('Transaction parsed.\n');

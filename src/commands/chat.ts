@@ -64,6 +64,7 @@ export async function startInteractiveChat(options: {
   verbose?: boolean;
   apiKey?: string;
   sessionId?: string;
+  allowCustomHost?: boolean;
 } = {}): Promise<void> {
   const auth = await ensureApiKeyInteractive({
     apiKey: options.apiKey,
@@ -73,6 +74,7 @@ export async function startInteractiveChat(options: {
   const client = new LanaClient({
     apiKey: auth.apiKey,
     verbose: options.verbose,
+    allowCustomHost: options.allowCustomHost,
   });
 
   const banner = [

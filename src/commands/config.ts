@@ -29,6 +29,10 @@ export default defineCommand({
       type: 'string',
       description: 'Set custom API endpoint URL',
     },
+    allowCustomHost: {
+      type: 'boolean',
+      description: 'Allow sending API credentials to custom endpoint hosts',
+    },
     format: {
       type: 'string',
       description: 'Set default output format (table | json | md | csv)',
@@ -66,6 +70,7 @@ export default defineCommand({
       }
       if (args.endpoint) updates.endpoint = args.endpoint;
       if (args.format) updates.defaultFormat = args.format;
+      if (args.allowCustomHost !== undefined) updates.allowCustomHost = Boolean(args.allowCustomHost);
 
       if (Object.keys(updates).length === 0) {
         consola.warn('No configuration parameters specified to set.');
@@ -106,7 +111,8 @@ export default defineCommand({
       }`
     );
     console.log(`  Default Format: ${pc.white(config.defaultFormat || 'table')}`);
-    console.log(`  API Endpoint:   ${pc.dim(config.endpoint || 'https://beta.helius-rpc.com/v1/lana/messages')}\n`);
+    console.log(`  API Endpoint:   ${pc.dim(config.endpoint || 'https://beta.helius-rpc.com/v1/lana/messages')}`);
+    console.log(`  Custom Host Opt-in: ${config.allowCustomHost ? pc.green('Enabled') : pc.dim('Disabled')}\n`);
     console.log(pc.dim('Config commands:'));
     console.log(`  ${pc.cyan('lana config get')}              ${pc.dim('View active configuration status')}`);
     console.log(`  ${pc.cyan('lana config set --key <KEY>')}  ${pc.dim('Update or change API key')}`);

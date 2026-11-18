@@ -44,7 +44,7 @@ export function renderLookup(profile: WalletProfile, isJson = false): void {
     return;
   }
 
-  const riskScore = profile?.riskScore ?? 0;
+  const riskScore = profile?.riskScore;
   const riskBadge = formatRiskBadge(riskScore, profile?.riskLevel);
   const labelsList = Array.isArray(profile?.labels) ? profile.labels : [];
   const labelsText = labelsList.map(l => formatLabelBadge(l)).join(' ');
@@ -54,7 +54,7 @@ export function renderLookup(profile: WalletProfile, isJson = false): void {
     `${pc.bold('Labels:        ')} ${labelsText || pc.dim('None')}`,
   ].join('\n');
 
-  printBox('LANA // WALLET PROFILE', headerContent, riskScore >= 50 ? 'red' : 'cyan');
+  printBox('LANA // WALLET PROFILE', headerContent, (riskScore != null && riskScore >= 50) ? 'red' : 'cyan');
 
   // Key Metrics Table
   const metricsTable = new Table({
@@ -144,20 +144,31 @@ export function renderTx(tx: TransactionExplainer, isJson = false): void {
     return;
   }
 
-  const isSuccess = tx?.status === 'SUCCESS';
-  const statusText = isSuccess
-    ? pc.bgGreen(pc.black(pc.bold(' SUCCESS ')))
-    : pc.bgRed(pc.white(pc.bold(' FAILED ')));
+  const status = tx?.status || 'UNKNOWN';
+  const statusText =
+    status === 'SUCCESS'
+      ? pc.bgGreen(pc.black(pc.bold(' SUCCESS ')))
+      : status === 'FAILED'
+      ? pc.bgRed(pc.white(pc.bold(' FAILED ')))
+      : pc.bgYellow(pc.black(pc.bold(' UNKNOWN ')));
 
   const signersList = Array.isArray(tx?.signers) ? tx.signers : [];
+  const feeText = tx?.feeSol != null ? formatSol(tx.feeSol) : pc.dim('Unknown');
+  const timeText = tx?.timestamp ? formatDate(tx.timestamp) : pc.dim('Unknown');
+
   const header = [
     `${pc.bold('Signature:')} ${formatTxHash(tx?.signature || '', true)}`,
     `${pc.bold('Status:   ')} ${statusText}    ${pc.bold('Type:')} ${pc.magenta(tx?.type || 'Transaction')}`,
-    `${pc.bold('Fee:      ')} ${formatSol(tx?.feeSol ?? 0)}    ${pc.bold('Time:')} ${formatDate(tx?.timestamp)}`,
+    `${pc.bold('Fee:      ')} ${feeText}    ${pc.bold('Time:')} ${timeText}`,
     `${pc.bold('Signers:  ')} ${signersList.map(s => formatAddress(s)).join(', ') || pc.dim('N/A')}`,
-  ].join('\n');
+  ];
 
-  printBox('LANA // TRANSACTION EXPLAINER', header, isSuccess ? 'green' : 'red');
+  if (tx?.onChainError) {
+    header.push(`${pc.bold('On-Chain Error:')} ${pc.red(tx.onChainError)}`);
+  }
+
+  const boxColor = status === 'SUCCESS' ? 'green' : status === 'FAILED' ? 'red' : 'yellow';
+  printBox('LANA // TRANSACTION EXPLAINER', header.join('\n'), boxColor);
 
   // Plain-English Explanation
   if (tx?.plainEnglish) {
@@ -246,10 +257,13 @@ export function renderFlow(flow: FundFlowSummary, isJson = false): void {
     return;
   }
 
+  const inflowText = flow?.totalInflowSol != null ? formatSol(flow.totalInflowSol) : pc.dim('Unknown');
+  const outflowText = flow?.totalOutflowSol != null ? formatSol(flow.totalOutflowSol) : pc.dim('Unknown');
+
   const header = [
     `${pc.bold('Target Address: ')} ${pc.cyan(flow?.rootAddress || 'Unknown')}`,
     `${pc.bold('Search Depth:   ')} ${pc.yellow(String(flow?.depth ?? 2))} hops`,
-    `${pc.bold('Total Inflow:   ')} ${pc.green(formatSol(flow?.totalInflowSol ?? 0))}    ${pc.bold('Total Outflow: ')} ${pc.red(formatSol(flow?.totalOutflowSol ?? 0))}`,
+    `${pc.bold('Total Inflow:   ')} ${inflowText}    ${pc.bold('Total Outflow: ')} ${outflowText}`,
   ].join('\n');
 
   printBox('LANA // FUND FLOW TREE', header, 'magenta');
@@ -292,18 +306,22 @@ export function renderCompare(comparison: WalletComparison, isJson = false): voi
 
   const addresses = Array.isArray(comparison?.addresses) ? comparison.addresses : [];
   const profiles = Array.isArray(comparison?.profiles) ? comparison.profiles : [];
-  const similarityScore = Number(comparison?.similarityScore ?? 50);
+  const similarityScore = comparison?.similarityScore;
 
-  const simColor =
-    similarityScore >= 75
-      ? pc.red
-      : similarityScore >= 40
-      ? pc.yellow
-      : pc.green;
+  let simScoreText = pc.dim('Unknown / Not computed');
+  if (similarityScore != null) {
+    const simColor =
+      similarityScore >= 75
+        ? pc.red
+        : similarityScore >= 40
+        ? pc.yellow
+        : pc.green;
+    simScoreText = simColor(pc.bold(`${similarityScore}% Congruence`));
+  }
 
   const header = [
     `${pc.bold('Wallets Analyzed:')} ${addresses.length}`,
-    `${pc.bold('Similarity Score:')} ${simColor(pc.bold(`${similarityScore}% Congruence`))}`,
+    `${pc.bold('Similarity Score:')} ${simScoreText}`,
     `${pc.bold('Shared Funding:  ')} ${comparison?.sharedFundingSource ? pc.yellow(comparison.sharedFundingSource) : pc.dim('No direct shared source')}`,
   ].join('\n');
 
@@ -315,7 +333,7 @@ export function renderCompare(comparison: WalletComparison, isJson = false): voi
   });
 
   profileTable.push(
-    ['Risk Score', ...profiles.map(p => formatRiskBadge(p?.riskScore ?? 0, p?.riskLevel))],
+    ['Risk Score', ...profiles.map(p => formatRiskBadge(p?.riskScore, p?.riskLevel))],
     ['SOL Balance', ...profiles.map(p => formatSol(p?.solBalance ?? 0))],
     [
       'Tx Count',
@@ -395,7 +413,7 @@ export function renderDossier(dossier: DossierReport, isJson = false, isMd = fal
     return;
   }
 
-  const score = dossier?.riskAssessment?.score ?? 0;
+  const score = dossier?.riskAssessment?.score;
   const level = dossier?.riskAssessment?.level;
   const header = [
     `${pc.bold('CASE ID:       ')} ${pc.yellow(dossier?.caseId || 'CASE-0000')}`,

@@ -4,6 +4,7 @@ export interface LanaConfig {
   model?: string;
   defaultFormat?: 'table' | 'json' | 'md' | 'csv';
   color?: boolean;
+  allowCustomHost?: boolean;
 }
 
 export interface WatchlistItem {
@@ -32,16 +33,16 @@ export interface FundingSource {
 
 export interface WalletProfile {
   address: string;
-  riskScore: number; // 0 to 100
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  riskScore?: number; // 0 to 100, optional when evidence exists
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | 'UNKNOWN';
   labels: string[];
   narrative: string;
-  firstActivity: string;
-  lastActivity: string;
+  firstActivity?: string;
+  lastActivity?: string;
   solBalance: number;
   tokenCount: number;
   totalTxCount: number;
-  fundingSource: FundingSource;
+  fundingSource?: FundingSource;
   topCounterparties: Counterparty[];
   behavioralSignals: string[];
 }
@@ -65,14 +66,15 @@ export interface ProgramInteraction {
 
 export interface TransactionExplainer {
   signature: string;
-  timestamp: string;
-  type: string;
-  feeSol: number;
-  status: 'SUCCESS' | 'FAILED';
+  timestamp?: string;
+  type?: string;
+  feeSol?: number;
+  status: 'SUCCESS' | 'FAILED' | 'UNKNOWN';
   plainEnglish: string;
   moneyMovements: MoneyMovement[];
   programInteractions: ProgramInteraction[];
   signers: string[];
+  onChainError?: string | null;
 }
 
 export interface FundFlowNode {
@@ -89,8 +91,8 @@ export interface FundFlowNode {
 export interface FundFlowSummary {
   rootAddress: string;
   depth: number;
-  totalInflowSol: number;
-  totalOutflowSol: number;
+  totalInflowSol?: number;
+  totalOutflowSol?: number;
   directInflows: FundFlowNode[];
   directOutflows: FundFlowNode[];
   notableHops: string[];
@@ -99,7 +101,7 @@ export interface FundFlowSummary {
 export interface WalletComparison {
   addresses: string[];
   profiles: WalletProfile[];
-  similarityScore: number; // 0 to 100
+  similarityScore?: number; // 0 to 100, undefined if not computed
   commonCounterparties: Array<{
     address: string;
     label?: string;
@@ -116,12 +118,12 @@ export interface DossierReport {
   generatedAt: string;
   classification: string;
   executiveSummary: string;
-  riskAssessment: {
-    score: number;
-    level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  riskAssessment?: {
+    score?: number;
+    level?: string;
     factors: string[];
   };
-  clusterAnalysis: {
+  clusterAnalysis?: {
     primaryCluster: string;
     associatedEntities: Array<{
       address: string;
@@ -130,17 +132,17 @@ export interface DossierReport {
       relationship: string;
     }>;
   };
-  fundOrigins: {
+  fundOrigins?: {
     originAddress: string;
     originLabel?: string;
     firstBridgeOrCex?: string;
-    initialCapitalSol: number;
-    initialDate: string;
+    initialCapitalSol?: number;
+    initialDate?: string;
   };
-  chronology: Array<{
+  chronology?: Array<{
     timestamp: string;
     event: string;
-    significance: string;
+    significance?: string;
   }>;
   conclusion: string;
 }
