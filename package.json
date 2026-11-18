@@ -7,11 +7,11 @@
   "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/himanshurawatj/lana-cli.git"
+    "url": "https://github.com/himanshu-rawat77/LanaAI-CLI.git"
   },
-  "homepage": "https://github.com/himanshurawatj/lana-cli#readme",
+  "homepage": "https://github.com/himanshu-rawat77/LanaAI-CLI#readme",
   "bugs": {
-    "url": "https://github.com/himanshurawatj/lana-cli/issues"
+    "url": "https://github.com/himanshu-rawat77/LanaAI-CLI/issues"
   },
   "bin": {
     "lana": "bin/lana.js"

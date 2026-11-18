@@ -80,8 +80,8 @@ npx @himanshurawatj/lana-ai-cli lookup 7RtC1QgiNVLANGRTEKxASz4bRiMYyf2hUVLs1XGuJ
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/himanshurawatj/lana-cli.git
-cd lana-cli
+git clone https://github.com/himanshu-rawat77/LanaAI-CLI.git
+cd LanaAI-CLI
 
 # 2. Install dependencies
 npm install

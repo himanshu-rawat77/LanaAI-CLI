@@ -13,8 +13,8 @@ Thank you for your interest in contributing to **Lana AI CLI**! Whether you are 
 
 ### 1. Fork & Clone
 ```bash
-git clone https://github.com/himanshurawatj/lana-cli.git
-cd lana-cli
+git clone https://github.com/himanshu-rawat77/LanaAI-CLI.git
+cd LanaAI-CLI
 ```
 
 ### 2. Install Dependencies
