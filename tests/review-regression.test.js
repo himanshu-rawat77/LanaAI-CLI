@@ -10,7 +10,7 @@ test('1. Wallet Risk: "no evidence of a scam" returns narrative with no numeric 
 
   // Access private method normalizeProfile / simulate prose lookup
   const proseResponse = 'The account shows ordinary trading activity. There is no evidence of a scam or exploit.';
-  const profile = (client as any).normalizeProfile({}, '7RtC1QgiNVLANGRTEKxASz4bRiMYyf2hUVLs1XGuJ6Gr', proseResponse);
+  const profile = client.normalizeProfile({}, '7RtC1QgiNVLANGRTEKxASz4bRiMYyf2hUVLs1XGuJ6Gr', proseResponse);
 
   assert.equal(profile.narrative, proseResponse);
   assert.equal(profile.riskScore, undefined, 'riskScore must be undefined for prose-only response with no score');
@@ -25,7 +25,7 @@ test('2. Transaction Facts: status and fee are not fabricated when unavailable',
   });
 
   // Test parser with unavailable transaction metadata
-  const unavailableTx = (client as any).parseTxBreakdown('5UfD...test', {
+  const unavailableTx = client.parseTxBreakdown('5UfD...test', {
     text: 'Could not find transaction on cluster.',
     toolResults: [],
     raw: null,
@@ -42,9 +42,7 @@ test('3. Fixed Findings Removed: compare, dossier, and flow maintain undefined f
   });
 
   // Compare prose fallback
-  const compareMock = (client as any).compare;
-  // We can test compare fallback logic by testing normalization
-  const emptyProfile = (client as any).normalizeProfile({}, 'test-addr', 'Prose summary of wallets.');
+  const emptyProfile = client.normalizeProfile({}, 'test-addr', 'Prose summary of wallets.');
   assert.equal(emptyProfile.riskScore, undefined);
 
   // Directly check flow fallback structure
@@ -78,22 +76,22 @@ test('3. Fixed Findings Removed: compare, dossier, and flow maintain undefined f
 });
 
 test('4. Credential Destination: custom untrusted endpoint receives NO authenticated request before opt-in', async () => {
-  let receivedAuthHeader: string | undefined = undefined;
-  let receivedApiKeyHeader: string | undefined = undefined;
+  let receivedAuthHeader = undefined;
+  let receivedApiKeyHeader = undefined;
   let requestCount = 0;
 
   // Spin up local mock HTTP endpoint
   const server = http.createServer((req, res) => {
     requestCount++;
     receivedAuthHeader = req.headers['authorization'];
-    receivedApiKeyHeader = (req.headers['x-api-key'] || req.headers['api-key']) as string | undefined;
+    receivedApiKeyHeader = req.headers['x-api-key'] || req.headers['api-key'];
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ content: [{ type: 'text', text: 'mock response' }] }));
   });
 
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
-  const port = (server.address() as any).port;
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+  const port = server.address().port;
   const mockEndpoint = `http://127.0.0.1:${port}/v1/messages`;
 
   try {
@@ -121,12 +119,12 @@ test('4. Credential Destination: custom untrusted endpoint receives NO authentic
       allowCustomHost: true,
     });
 
-    const result = await (optedInClient as any).callLanaRaw('system', 'hello');
+    const result = await optedInClient.callLanaRaw('system', 'hello');
     assert.ok(result);
     assert.equal(requestCount, 1, 'Custom endpoint receives request only after explicit opt-in');
     assert.equal(receivedAuthHeader, 'Bearer dummy-secret-key-12345');
   } finally {
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await new Promise((resolve) => server.close(() => resolve()));
   }
 });
 

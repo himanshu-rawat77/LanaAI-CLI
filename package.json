@@ -30,7 +30,7 @@
     "dev": "tsup --watch",
     "prepack": "npm run build",
     "typecheck": "tsc --noEmit",
-    "test": "node ./bin/lana.js --help && node --test tests/review-regression.test.ts"
+    "test": "node ./bin/lana.js --help && node --test tests/review-regression.test.js"
   },
   "keywords": [
     "solana",
