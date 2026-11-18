@@ -111,7 +111,8 @@ export default defineCommand({
       }`
     );
     console.log(`  Default Format: ${pc.white(config.defaultFormat || 'table')}`);
-    console.log(`  API Endpoint:   ${pc.dim(config.endpoint || 'https://beta.helius-rpc.com/v1/lana/messages')}`);
+    const activeEndpoint = process.env.LANA_API_URL || config.endpoint || 'https://beta.helius-rpc.com/v1/lana/messages';
+    console.log(`  API Endpoint:   ${pc.dim(activeEndpoint)}${process.env.LANA_API_URL ? pc.cyan(' (via LANA_API_URL)') : ''}`);
     console.log(`  Custom Host Opt-in: ${config.allowCustomHost ? pc.green('Enabled') : pc.dim('Disabled')}\n`);
     console.log(pc.dim('Config commands:'));
     console.log(`  ${pc.cyan('lana config get')}              ${pc.dim('View active configuration status')}`);

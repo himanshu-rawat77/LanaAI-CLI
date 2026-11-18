@@ -102,7 +102,7 @@ export class OrbRpcClient {
       ? new Date(rawTx.blockTime * 1000).toISOString()
       : 'Unknown';
     const status: 'Success' | 'Failed' = rawTx.meta?.err ? 'Failed' : 'Success';
-    const feeSol = (rawTx.meta?.fee ?? 5000) / 1e9;
+    const feeSol = rawTx.meta?.fee != null ? rawTx.meta.fee / 1e9 : 0;
     const version: '0' | '1' | 'legacy' =
       rawTx.version === 0 ? '0' : rawTx.version === 1 ? '1' : 'legacy';
 

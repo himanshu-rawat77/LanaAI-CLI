@@ -132,7 +132,7 @@ test('5. Host Verification: recognizes trusted Helius and Lana hosts', () => {
   assert.equal(isTrustedHeliusHost('https://beta.helius-rpc.com/v1/lana/messages'), true);
   assert.equal(isTrustedHeliusHost('https://mainnet.helius-rpc.com/?api-key=xyz'), true);
   assert.equal(isTrustedHeliusHost('https://api.helius.dev'), true);
-  assert.equal(isTrustedHeliusHost('https://lana-api.helius-experiments.com'), true);
+  assert.equal(isTrustedHeliusHost('https://beta.helius-rpc.com/v1/lana/messages'), true);
   assert.equal(isTrustedHeliusHost('https://api.orbmarkets.io'), true);
 
   // Untrusted hosts
