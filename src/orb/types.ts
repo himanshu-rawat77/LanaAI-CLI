@@ -34,10 +34,10 @@ export interface OrbAccountEntry {
 
 export interface OrbTxDetails {
   signature: string;
-  status: 'Success' | 'Failed';
+  status: 'Success' | 'Failed' | 'Unknown';
   slot: number;
   blockTime: string;
-  fee: number;
+  fee?: number;
   cuUsed: number;
   cuLimit: number;
   cuPercentage: number;

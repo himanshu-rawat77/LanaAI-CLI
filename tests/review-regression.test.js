@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { LanaClient, isTrustedHeliusHost } from '../dist/index.js';
+import {
+  LanaClient,
+  isTrustedHeliusHost,
+  exportToCsv,
+  formatDossierMarkdown,
+  OrbRpcClient,
+} from '../dist/index.js';
 
 test('1. Wallet Risk: "no evidence of a scam" returns narrative with no numeric score', async () => {
   const client = new LanaClient({
@@ -140,4 +146,92 @@ test('5. Host Verification: recognizes trusted Helius and Lana hosts', () => {
   assert.equal(isTrustedHeliusHost('http://127.0.0.1:8080'), false);
   assert.equal(isTrustedHeliusHost('https://evil-hacker.com/api'), false);
   assert.equal(isTrustedHeliusHost('https://helius-rpc.com.evil.com'), false);
+});
+
+test('6. Exports: unknown risk score exports as N/A in CSV and does not fabricate (0/100) in Markdown', () => {
+  // A wallet with unknown risk
+  const unassessedProfile = {
+    address: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',
+    solBalance: 12.5,
+    tokenCount: 4,
+    totalTxCount: 15,
+    // riskScore and riskLevel are undefined
+  };
+
+  const csvOutput = exportToCsv(unassessedProfile);
+  assert.ok(csvOutput.includes('"Risk Score","N/A"'), 'CSV must export N/A for undefined risk score');
+  assert.ok(csvOutput.includes('"Risk Level","N/A"'), 'CSV must export N/A for undefined risk level');
+  assert.ok(!csvOutput.includes('"Risk Score","0"'), 'CSV must NOT invent score 0');
+  assert.ok(!csvOutput.includes('"Risk Level","LOW"'), 'CSV must NOT invent level LOW');
+
+  // Markdown dossier with no assessment
+  const unassessedDossier = {
+    caseId: 'CASE-TEST-001',
+    targetAddress: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',
+    classification: 'CONFIDENTIAL',
+    executiveSummary: 'Forensic review pending.',
+    riskAssessment: {
+      level: 'UNKNOWN',
+      // score is undefined
+    },
+    clusterAnalysis: undefined,
+    fundOrigins: undefined,
+    chronology: [],
+  };
+
+  const mdOutput = formatDossierMarkdown(unassessedDossier);
+  assert.ok(mdOutput.includes('**Risk Level:** UNKNOWN'), 'Markdown must show UNKNOWN risk level');
+  assert.ok(!mdOutput.includes('(0/100)'), 'Markdown must NOT invent (0/100) when score is missing');
+});
+
+test('7. Missing Execution Metadata: transaction with meta === null reports Unknown status and undefined fee', async () => {
+  const orb = new OrbRpcClient('mainnet', 'test-key');
+
+  // Stub rpcCall to simulate RPC returning a transaction with meta === null (e.g. unfinalized or pruned)
+  orb.rpcCall = async (method) => {
+    if (method === 'getTransaction') {
+      return {
+        slot: 12345678,
+        blockTime: 1700000000,
+        meta: null, // missing execution metadata
+        version: 0,
+        transaction: {
+          message: {
+            accountKeys: ['SignerAddr1111111111111111111111111111111111'],
+          },
+        },
+      };
+    }
+    return null;
+  };
+
+  const details = await orb.getTransaction('mock-signature-with-null-meta');
+  assert.equal(details.status, 'Unknown', 'Status must be Unknown when meta is null');
+  assert.equal(details.fee, undefined, 'Fee must be undefined when meta is null, NOT 0');
+});
+
+test('8. Untrusted .env Safeguard: project .env cannot bypass custom host check', () => {
+  // Simulate an untrusted repository with a .env setting both LANA_API_URL and LANA_ALLOW_CUSTOM_HOST
+  const originalEnvOptIn = process.env.LANA_ALLOW_CUSTOM_HOST;
+  process.env.LANA_ALLOW_CUSTOM_HOST = 'true';
+
+  try {
+    assert.throws(
+      () => {
+        new LanaClient({
+          apiKey: 'real-user-api-key',
+          endpoint: 'https://attacker-collector.com/v1/messages',
+          allowCustomHost: false, // flag not provided by user
+        });
+      },
+      /Refusing to send API credentials to custom\/untrusted endpoint/,
+      'LANA_ALLOW_CUSTOM_HOST in environment must NOT grant custom host access'
+    );
+  } finally {
+    if (originalEnvOptIn !== undefined) {
+      process.env.LANA_ALLOW_CUSTOM_HOST = originalEnvOptIn;
+    } else {
+      delete process.env.LANA_ALLOW_CUSTOM_HOST;
+    }
+  }
 });

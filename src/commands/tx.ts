@@ -96,7 +96,13 @@ export default defineCommand({
       } catch (err: any) {
         txExplainer = {
           signature: sig,
-          status: onChainTx ? (onChainTx.status === 'Success' ? 'SUCCESS' : 'FAILED') : 'UNKNOWN',
+          status: onChainTx
+            ? onChainTx.status === 'Success'
+              ? 'SUCCESS'
+              : onChainTx.status === 'Failed'
+              ? 'FAILED'
+              : 'UNKNOWN'
+            : 'UNKNOWN',
           plainEnglish: onChainTx
             ? 'On-chain transaction verified. AI plain-English summary unavailable.'
             : `Transaction unavailable or not found on Solana mainnet.`,
@@ -108,8 +114,19 @@ export default defineCommand({
 
       // 3. Verify and reconcile transaction facts with on-chain ground truth
       if (onChainTx) {
-        txExplainer.status = onChainTx.status === 'Success' ? 'SUCCESS' : 'FAILED';
-        txExplainer.feeSol = onChainTx.fee;
+        if (onChainTx.status === 'Success') {
+          txExplainer.status = 'SUCCESS';
+          txExplainer.feeSol = onChainTx.fee;
+        } else if (onChainTx.status === 'Failed') {
+          txExplainer.status = 'FAILED';
+          txExplainer.feeSol = onChainTx.fee;
+          txExplainer.onChainError = 'Transaction execution failed on-chain (instruction error).';
+        } else {
+          // Execution metadata is missing (meta === null or unfinalized)
+          txExplainer.status = 'UNKNOWN';
+          txExplainer.feeSol = undefined;
+          txExplainer.onChainError = 'Transaction execution metadata unavailable on-chain.';
+        }
         txExplainer.timestamp = onChainTx.blockTime !== 'Unknown' ? onChainTx.blockTime : undefined;
         if (onChainTx.accounts && onChainTx.accounts.length > 0) {
           const signers = onChainTx.accounts.filter(a => a.isSigner).map(a => a.address);

@@ -506,8 +506,9 @@ export function renderDossier(dossier: DossierReport, isJson = false, isMd = fal
 }
 
 export function formatDossierMarkdown(dossier: DossierReport): string {
-  const score = dossier?.riskAssessment?.score ?? 0;
+  const score = dossier?.riskAssessment?.score;
   const level = dossier?.riskAssessment?.level ?? 'UNKNOWN';
+  const riskDisplay = score != null ? `${level} (${score}/100)` : level;
   const factors = Array.isArray(dossier?.riskAssessment?.factors) ? dossier.riskAssessment.factors : [];
   const associated = Array.isArray(dossier?.clusterAnalysis?.associatedEntities)
     ? dossier.clusterAnalysis.associatedEntities
@@ -518,7 +519,7 @@ export function formatDossierMarkdown(dossier: DossierReport): string {
 **Case ID:** \`${dossier?.caseId || 'CASE-0000'}\`  
 **Target Subject:** \`${dossier?.targetAddress || 'Unknown'}\`  
 **Generated At:** ${dossier?.generatedAt || new Date().toISOString()}  
-**Risk Level:** ${level} (${score}/100)
+**Risk Level:** ${riskDisplay}
 
 ---
 
@@ -619,11 +620,11 @@ export function exportToCsv(profile: WalletProfile): string {
   const rows = [
     ['Field', 'Value'],
     ['Address', profile?.address || ''],
-    ['Risk Score', profile?.riskScore ?? 0],
-    ['Risk Level', profile?.riskLevel || 'LOW'],
-    ['SOL Balance', profile?.solBalance ?? 0],
-    ['Token Count', profile?.tokenCount ?? 0],
-    ['Total Tx Count', profile?.totalTxCount ?? 0],
+    ['Risk Score', profile?.riskScore != null ? profile.riskScore : 'N/A'],
+    ['Risk Level', profile?.riskLevel || 'N/A'],
+    ['SOL Balance', profile?.solBalance != null ? profile.solBalance : 'N/A'],
+    ['Token Count', profile?.tokenCount != null ? profile.tokenCount : 'N/A'],
+    ['Total Tx Count', profile?.totalTxCount != null ? profile.totalTxCount : 'N/A'],
     ['First Active', profile?.firstActivity || ''],
     ['Last Active', profile?.lastActivity || ''],
     ['Funding Address', profile?.fundingSource?.address || ''],

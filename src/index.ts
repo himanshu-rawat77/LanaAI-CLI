@@ -3,6 +3,8 @@ import { runMain } from 'citty';
 import { main } from './cli.js';
 
 export { LanaClient, isTrustedHeliusHost } from './lana-client.js';
+export { exportToCsv, formatDossierMarkdown } from './utils/output.js';
+export { OrbRpcClient } from './orb/rpc.js';
 export * from './types.js';
 
 // Only run CLI automatically when executed directly as CLI entrypoint

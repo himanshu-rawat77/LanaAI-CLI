@@ -19,7 +19,7 @@ import chatCmd, { startInteractiveChat } from './commands/chat.js';
 export const main = defineCommand({
   meta: {
     name: 'lana',
-    version: '1.1.2',
+    version: '1.1.3',
     description: 'Solana Conversational Intelligence & Forensic Explorer (Unofficial Community CLI built on Helius Lana AI)',
   },
   subCommands: {

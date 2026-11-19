@@ -81,18 +81,18 @@ export class LanaClient {
 
     this.allowCustomHost = Boolean(
       options.allowCustomHost ||
-      process.env.LANA_ALLOW_CUSTOM_HOST === 'true' ||
       config.allowCustomHost === true
     );
 
     // Explicit opt-in verification before sending credentials to custom hosts
+    // Local project .env must NOT grant custom host access; requires explicit CLI flag or global ~/.config/lana/config.json
     if (!isTrustedHeliusHost(this.endpoint) && !this.allowCustomHost) {
       let hostname = this.endpoint;
       try {
         hostname = new URL(this.endpoint).hostname;
       } catch {}
       throw new Error(
-        `Refusing to send API credentials to custom/untrusted endpoint "${hostname}" without explicit opt-in. Pass --allow-custom-host or set LANA_ALLOW_CUSTOM_HOST=true.`
+        `Refusing to send API credentials to custom/untrusted endpoint "${hostname}" without explicit opt-in. Pass --allow-custom-host or configure "allowCustomHost: true" in global lana config.`
       );
     }
 

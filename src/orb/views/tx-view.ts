@@ -20,7 +20,12 @@ export function renderOrbTx(tx: OrbTxDetails, options: TxViewOptions = {}): void
   console.log(pc.bold(pc.white('\nTRANSACTION')));
   console.log(pc.dim(LINE));
 
-  const statusColor = tx.status === 'Success' ? pc.green('Success') : pc.red('Failed');
+  const statusColor =
+    tx.status === 'Success'
+      ? pc.green('Success')
+      : tx.status === 'Failed'
+      ? pc.red('Failed')
+      : pc.yellow('Unknown');
   const cuPercentStr = `${tx.cuPercentage.toFixed(1)}%`;
   const cuColor = tx.cuPercentage > 85 ? pc.red : tx.cuPercentage > 50 ? pc.yellow : pc.cyan;
 
@@ -28,7 +33,9 @@ export function renderOrbTx(tx: OrbTxDetails, options: TxViewOptions = {}): void
   console.log(`${pc.bold('Status     ')} ${statusColor}`);
   console.log(`${pc.bold('Slot       ')} ${tx.slot.toLocaleString()}`);
   console.log(`${pc.bold('Block Time ')} ${tx.blockTime}`);
-  console.log(`${pc.bold('Fee        ')} ${tx.fee.toFixed(6)} SOL`);
+  console.log(
+    `${pc.bold('Fee        ')} ${tx.fee != null ? `${tx.fee.toFixed(6)} SOL` : pc.dim('Unknown')}`
+  );
   console.log(
     `${pc.bold('CU Used    ')} ${tx.cuUsed.toLocaleString()} / ${tx.cuLimit.toLocaleString()} (${cuColor(cuPercentStr)})`
   );
